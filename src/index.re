@@ -2,6 +2,15 @@ open Reprocessing;
 
 let pi = 4.0 *. atan(1.0)
 
+/* Game constants */
+let dAngle = 0.2;
+let acceleration = 1.0;
+let dt = 0.1;
+
+Js.log2("dAngle:", dAngle);
+Js.log2("acceleration:", acceleration);
+Js.log2("dt:", dt);
+
 let size = 600
 let sizef = float(size)
 
@@ -67,6 +76,20 @@ module Ship = {
     velocity : Vector.t,
   }
 
+  let timeStep = (t, dt) : t => {
+    let { tip, direction, velocity } = t;
+    { ...t, 
+      tip: Point.add(tip, Vector.scale(t.velocity, ~by=dt))
+    }
+  };
+
+  let accelerate = (t, dt) : t => {
+    let a = Vector.scale(t.direction, ~by=acceleration*.dt);
+    { ...t, 
+      velocity: Vector.add(t.velocity, a)
+    }
+  }
+  
   let draw = (t, env) => {
     let negDirection = Vector.scale(t.direction, ~by=-1.);
     let backMiddle = Point.add(t.tip, negDirection);
@@ -89,7 +112,7 @@ let setup = (env) : State.t => {
   Env.size(~width=size, ~height=size, env);
   let ship = { 
     Ship.tip: Point.{x: sizef /. 2., y: sizef /. 2.},
-    direction: Vector.{x: -100., y: 0.},
+    direction: Vector.{x: -20., y: 0.},
     velocity: Vector.zero,
   };
   { ship: ship }
@@ -101,7 +124,8 @@ let draw = (state, env) : State.t => {
   Draw.strokeWeight(2, env);
   Draw.stroke(Color.white, env);
   Ship.draw(ship, env);
-  state;
+  let ship = Ship.timeStep(ship, dt);
+  { State.ship : ship }
 }
 
 let keyTyped = (state, env) : State.t => {
@@ -110,11 +134,11 @@ let keyTyped = (state, env) : State.t => {
   let rotate = (ship: Ship.t, angle) => {
     {...ship, Ship.direction: Vector.rotate(ship.direction, angle)};
   };
-  let dAngle = 0.2;
   let ship =
     switch (key) {
     | Left => rotate(ship, dAngle)
     | Right => rotate(ship, -. dAngle)
+    | Up => Ship.accelerate(ship, dt)
     | _ => ship
     };
   { State.ship : ship }
