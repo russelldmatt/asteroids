@@ -9,6 +9,7 @@
     "clean": "bsb -clean-world"
   },
   "dependencies": {
+    "npm": "^6.5.0",
     "reprocessing": "0.2.0"
   },
   "devDependencies": {
