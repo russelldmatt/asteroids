@@ -43,12 +43,21 @@ module Vector = {
   let scale = mult;
   
   let rotate = (t, theta) => {
-    let theta = atan(t.y /. t.x) +. theta;
+    let theta = atan2(t.y, t.x) +. theta;
     let a = Point.length(t);
     { x: a *. cos(theta),
       y: a *. sin(theta)
     }
   }
+
+  let rotate' = (t, theta) => {
+    Js.log(t);
+    Js.log(theta);
+    let t = rotate(t, theta);
+    Js.log(t);
+    t
+  }
+
 }
 
 module Ship = {
@@ -72,11 +81,11 @@ module Ship = {
   }
 }
 
-type state = {
-  ship : Ship.t,
+module State = {
+  type t = { ship : Ship.t }
 }
 
-let setup = (env) : state => {
+let setup = (env) : State.t => {
   Env.size(~width=size, ~height=size, env);
   let ship = { 
     Ship.tip: Point.{x: sizef /. 2., y: sizef /. 2.},
@@ -86,8 +95,8 @@ let setup = (env) : state => {
   { ship: ship }
 }
 
-let draw = (state, env) : state => {
-  let { ship } = state;
+let draw = (state, env) : State.t => {
+  let { State.ship } = state;
   Draw.background(Color.black, env);
   Draw.strokeWeight(2, env);
   Draw.stroke(Color.white, env);
@@ -95,13 +104,20 @@ let draw = (state, env) : state => {
   state;
 }
 
-let keyPressed = (state, env) => {
-  let { ship } = state;
+let keyTyped = (state, env) : State.t => {
+  let { State.ship } = state;
   let key = Env.keyCode(env);
-  switch (key) {
-  | 
-  }
-  
+  let rotate = (ship: Ship.t, angle) => {
+    {...ship, Ship.direction: Vector.rotate(ship.direction, angle)};
+  };
+  let dAngle = 0.2;
+  let ship =
+    switch (key) {
+    | Left => rotate(ship, dAngle)
+    | Right => rotate(ship, -. dAngle)
+    | _ => ship
+    };
+  { State.ship : ship }
 };
 
-run(~setup, ~draw, ~keyPressed, ())
+run(~setup, ~draw, ~keyTyped, ())
