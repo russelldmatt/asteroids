@@ -2,15 +2,40 @@ open Reprocessing;
 
 module List = {
   include List;
-  let rec filterMap = (t, f) => {
-    switch(t) {
-      | [] => []
-      | [x, ...tl] => 
-        switch(f(x)) {
-          | Some(x) => [x, ...filterMap(tl, f)]
-          | None => filterMap(tl, f)
-        }
-    }
+
+  let findMapi = (t, f) => {
+    let rec loop = (t, i, f) => 
+      switch(t) {
+        | [] => None
+        | [x, ...tl] => 
+          switch(f(i, x)) {
+            | Some(a) => Some(a)
+            | None => loop(tl, i+1, f)
+          }
+      };
+    loop(t, 0, f)
+  }
+
+  let filterMapi = (t, f) => {
+    let rec loop = (t, i, f) => 
+      switch(t) {
+        | [] => []
+        | [x, ...tl] => 
+          switch(f(i, x)) {
+            | Some(x) => [x, ...loop(tl, i+1, f)]
+            | None => loop(tl, i+1, f)
+          }
+      };
+    loop(t, 0, f)
+  }
+
+  let filterMap = (t, f) => {
+    filterMapi(t, (_, x) => f(x))
+  }
+
+  let filteri = (t, f) => {
+    let f = (i, x) => f(i, x) ? Some(x) : None;
+    filterMapi(t, f)
   }
 };
 
@@ -52,6 +77,10 @@ module Point = {
       y: t.y *. by,
     }
   }
+  
+  let sub = (t1, t2) => {
+    add(t1, mult(t2, ~by=-1.))
+  }
 
   let dot = (t1, t2) => {
     t1.x *. t2.x +. t1.y *. t2.y
@@ -59,6 +88,10 @@ module Point = {
 
   let length = t => {
     dot(t, t) ** 0.5
+  }
+
+  let distance = (t1, t2) => {
+    length(sub(t2, t1))
   }
 
   let onScreen = t => {
@@ -172,10 +205,43 @@ module Ship = {
 
 }
 
+module Asteroid = {
+  /* Circle, for now */
+  type t = {
+    center: Point.t,
+    velocity : Vector.t,
+    radius: float,
+  }
+  
+  /* Copied from bullet */
+  /* Would be better if I detected when any part of the circle was onscreen instead of just center */
+  let timeStep = (t, dt) => {
+    let { center, velocity } = t;
+    let center = Point.add(center, Vector.scale(velocity, ~by=dt));
+    if (Point.onScreen(center)) {
+      Some({ ...t, center })
+    } else None
+  }
+
+  let isWithin = (t, point) => {
+    Point.distance(t.center, point) <= t.radius
+  }
+  
+  let draw = (t, env) : unit => {
+    Draw.ellipsef(
+      ~center=Point.tuple(t.center),
+      ~radx=t.radius,
+      ~rady=t.radius,
+      env
+    )
+  }
+}
+
 module State = {
   type t = { 
     ship : Ship.t,
     bullets : list(Bullet.t),
+    asteroids : list(Asteroid.t),
   }
 }
 
@@ -186,20 +252,39 @@ let setup = (env) : State.t => {
     direction: Vector.{x: -10., y: 0.},
     velocity: Vector.zero,
   };
-  {ship, bullets: []};
+  let asteroid = {
+    Asteroid.center: {Point.x: 300., y: 100. },
+    velocity: {Vector.x: 10., y: 10.},
+    radius: 10.,
+  };
+  {ship, bullets: [], asteroids: [asteroid]};
 }
 
 let draw = (state, env) : State.t => {
-  let { State.ship, bullets } = state;
+  let { State.ship, bullets, asteroids } = state;
   Draw.background(Color.black, env);
   Draw.strokeWeight(2, env);
   Draw.stroke(Color.white, env);
   Ship.draw(ship, env);
-  bullets
-  |> List.iter(bullet => Bullet.draw(bullet, env));
+  bullets |> List.iter(bullet => Bullet.draw(bullet, env));
+  asteroids |> List.iter(a => Asteroid.draw(a, env));
   let ship = Ship.timeStep(ship, dt);
   let bullets = bullets |. List.filterMap(b => Bullet.timeStep(b, dt));
-  { ship, bullets }
+  let asteroids = asteroids |. List.filterMap(a => Asteroid.timeStep(a, dt));
+  /* Detect collisions */
+  /* if any bullet and asteroid intersect, remove them both */
+  let bulletAsteroidIntersections = {
+    bullets
+    |. List.filterMapi((i, b) => {
+        asteroids
+        |. List.findMapi((j, a) => Asteroid.isWithin(a, b.pos) ? Some((i, j)) : None)
+      })
+  };
+  let bulletsToRemove = List.map(fst, bulletAsteroidIntersections);
+  let asteroidsToRemove = List.map(snd, bulletAsteroidIntersections);
+  let bullets = bullets |. List.filteri((i, _) => !List.mem(i, bulletsToRemove));
+  let asteroids = asteroids |. List.filteri((i, _) => !List.mem(i, asteroidsToRemove));
+  { ship, bullets, asteroids }
 }
 
 let keyTyped = (state, env) : State.t => {
