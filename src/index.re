@@ -103,6 +103,12 @@ module Point = {
     t.x <= sizef && t.x >= 0. &&
     t.y <= sizef && t.y >= 0. 
   }
+
+  let wrap = t => {
+    /* ... what? */
+    let wrap = f => f < 0. ? f +. sizef : f > sizef ? f -. sizef : f;
+    onScreen(t) ? t : { x: wrap(t.x), y: wrap(t.y) }
+  }
 }
 
 module Vector = {
@@ -149,14 +155,7 @@ module Ship = {
   }
 
   let wrap = t => {
-    /* ... what? */
-    let wrap = f => f < 0. ? f +. sizef : f > sizef ? f -. sizef : f;
-    let centerOfMass =
-      if (Point.onScreen(t.centerOfMass)) {
-        t.centerOfMass;
-      } else {
-        Point.{x: wrap(t.centerOfMass.x), y: wrap(t.centerOfMass.y)};
-      };
+    let centerOfMass = Point.wrap(t.centerOfMass);
     {
       ...t,
       centerOfMass
@@ -222,10 +221,10 @@ module Asteroid = {
   /* Would be better if I detected when any part of the circle was onscreen instead of just center */
   let timeStep = (t, dt) => {
     let { center, velocity } = t;
-    let center = Point.add(center, Vector.scale(velocity, ~by=dt));
-    if (Point.onScreen(center)) {
-      Some({ ...t, center })
-    } else None
+    let center =
+      Point.add(center, Vector.scale(velocity, ~by=dt))
+    |> Point.wrap;
+    { ...t, center }
   }
 
   let isWithin = (t, point) => {
@@ -275,7 +274,7 @@ let draw = (state, env) : State.t => {
   asteroids |> List.iter(a => Asteroid.draw(a, env));
   let ship = Ship.timeStep(ship, dt);
   let bullets = bullets |. List.filterMap(b => Bullet.timeStep(b, dt));
-  let asteroids = asteroids |. List.filterMap(a => Asteroid.timeStep(a, dt));
+  let asteroids = asteroids |> List.map(a => Asteroid.timeStep(a, dt));
   /* Detect collisions */
   /* if any bullet and asteroid intersect, remove them both */
   let bulletAsteroidIntersections = {
