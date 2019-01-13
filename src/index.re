@@ -76,12 +76,26 @@ module Ship = {
     velocity : Vector.t,
   }
 
-  let timeStep = (t, dt) : t => {
+  let wrap = t => {
+    let round = f => int_of_float (f +. 0.5)
+    let wrap = f => float((round(f) + size) mod size);
+    {
+      ...t,
+      centerOfMass:
+        Point.{x: wrap(t.centerOfMass.x), y: wrap(t.centerOfMass.y)},
+    };
+  }
+
+  let move = (t, dt) : t => {
     let { centerOfMass, direction, velocity } = t;
     { ...t, 
       centerOfMass: Point.add(centerOfMass, Vector.scale(t.velocity, ~by=dt))
     }
   };
+
+  let timeStep = (t, dt) : t => {
+    move(t, dt) |> wrap
+  }
 
   let accelerate = (t, dt) : t => {
     let a = Vector.scale(t.direction, ~by=acceleration*.dt);
@@ -114,7 +128,7 @@ let setup = (env) : State.t => {
   Env.size(~width=size, ~height=size, env);
   let ship = { 
     Ship.centerOfMass: Point.{x: sizef /. 2., y: sizef /. 2.},
-    direction: Vector.{x: -20., y: 0.},
+    direction: Vector.{x: -10., y: 0.},
     velocity: Vector.zero,
   };
   { ship: ship }
