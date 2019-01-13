@@ -6,6 +6,8 @@ open Reprocessing;
    - score!
    - delay when trying to turn or accelerate is super annoying
    - different game over state than crashing
+   - multiple lives?
+   - non-circular asteroids (sounds hard...)
  */
 module List = {
   include List;
