@@ -16,6 +16,11 @@ module List = {
     loop(t, 0, f)
   }
 
+  let find = (t, f) => {
+    let f = (_, x) => f(x) ? Some(x) : None;
+    findMapi(t, f)
+  }
+
   let filterMapi = (t, f) => {
     let rec loop = (t, i, f) => 
       switch(t) {
@@ -284,6 +289,15 @@ let draw = (state, env) : State.t => {
   let asteroidsToRemove = List.map(snd, bulletAsteroidIntersections);
   let bullets = bullets |. List.filteri((i, _) => !List.mem(i, bulletsToRemove));
   let asteroids = asteroids |. List.filteri((i, _) => !List.mem(i, asteroidsToRemove));
+
+  let gameOver = {
+    asteroids 
+    /* Should be better */
+    |. List.find(a => Asteroid.isWithin(a, ship.centerOfMass))
+    |> Belt.Option.isSome
+  };
+  if (gameOver) failwith("game over");
+
   { ship, bullets, asteroids }
 }
 
