@@ -2,6 +2,7 @@ open Reprocessing;
 
 module List = {
   include List;
+  let init = (n, f) => Array.init(n, f) |> Array.to_list
 
   let findMapi = (t, f) => {
     let rec loop = (t, i, f) => 
@@ -121,6 +122,11 @@ module Vector = {
     { x: a *. cos(theta),
       y: a *. sin(theta)
     }
+  }
+
+  let randomUnit = (()) => {
+    let theta = Random.float(2. *. pi);
+    rotate({ x: 1., y: 0.}, theta)
   }
 }
 
@@ -256,12 +262,14 @@ let setup = (env) : State.t => {
     direction: Vector.{x: -10., y: 0.},
     velocity: Vector.zero,
   };
-  let asteroid = {
-    Asteroid.center: {Point.x: 300., y: 100. },
-    velocity: {Vector.x: 10., y: 10.},
-    radius: 10.,
-  };
-  {ship, bullets: [], asteroids: [asteroid]};
+  let numAsteroids = Random.int(10);
+  let asteroids = 
+    List.init(numAsteroids, _ => {
+      let center = { Point.x: Random.float(sizef), y: Random.float(sizef) };
+      let velocity = Vector.scale(Vector.randomUnit(), ~by=20.);
+      { Asteroid.center, velocity, radius: 10. }
+    });
+    {ship, bullets: [], asteroids};
 }
 
 let draw = (state, env) : State.t => {
