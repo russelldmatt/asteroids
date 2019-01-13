@@ -1,5 +1,12 @@
 open Reprocessing;
 
+/* TODO: 
+   - random generation of more asteroids
+   - different sizes of asteroids, and larger ones split up into multiple of the next smaller size
+   - score!
+   - delay when trying to turn or accelerate is super annoying
+   - different game over state than crashing
+ */
 module List = {
   include List;
   let init = (n, f) => Array.init(n, f) |> Array.to_list
@@ -262,7 +269,7 @@ let setup = (env) : State.t => {
     direction: Vector.{x: -10., y: 0.},
     velocity: Vector.zero,
   };
-  let numAsteroids = Random.int(10);
+  let numAsteroids = 5 + Random.int(10);
   let asteroids = 
     List.init(numAsteroids, _ => {
       let center = { Point.x: Random.float(sizef), y: Random.float(sizef) };
