@@ -71,15 +71,15 @@ module Vector = {
 
 module Ship = {
   type t = {
-    tip : Point.t,
+    centerOfMass : Point.t,
     direction : Vector.t,
     velocity : Vector.t,
   }
 
   let timeStep = (t, dt) : t => {
-    let { tip, direction, velocity } = t;
+    let { centerOfMass, direction, velocity } = t;
     { ...t, 
-      tip: Point.add(tip, Vector.scale(t.velocity, ~by=dt))
+      centerOfMass: Point.add(centerOfMass, Vector.scale(t.velocity, ~by=dt))
     }
   };
 
@@ -91,12 +91,14 @@ module Ship = {
   }
   
   let draw = (t, env) => {
+    /* Center of mass is 2/3 from tip to middle of base */
     let negDirection = Vector.scale(t.direction, ~by=-1.);
-    let backMiddle = Point.add(t.tip, negDirection);
-    let backLeft = Point.add(backMiddle, Vector.scale(Vector.rotate(negDirection, -.pi/.2.), ~by=0.3));
-    let backRight = Point.add(backMiddle, Vector.scale(Vector.rotate(negDirection, pi/.2.), ~by=0.3));
+    let tip = Point.add(t.centerOfMass, Vector.scale(t.direction, ~by=2.));
+    let backMiddle = Point.add(t.centerOfMass, negDirection);
+    let backLeft = Point.add(backMiddle, Vector.rotate(negDirection, -.pi/.2.));
+    let backRight = Point.add(backMiddle, Vector.rotate(negDirection, pi/.2.));
     Draw.trianglef(
-      ~p1=Point.tuple(t.tip),
+      ~p1=Point.tuple(tip),
       ~p2=Point.tuple(backLeft),
       ~p3=Point.tuple(backRight),
       env
@@ -111,7 +113,7 @@ module State = {
 let setup = (env) : State.t => {
   Env.size(~width=size, ~height=size, env);
   let ship = { 
-    Ship.tip: Point.{x: sizef /. 2., y: sizef /. 2.},
+    Ship.centerOfMass: Point.{x: sizef /. 2., y: sizef /. 2.},
     direction: Vector.{x: -20., y: 0.},
     velocity: Vector.zero,
   };
@@ -136,8 +138,8 @@ let keyTyped = (state, env) : State.t => {
   };
   let ship =
     switch (key) {
-    | Left => rotate(ship, dAngle)
-    | Right => rotate(ship, -. dAngle)
+    | Left => rotate(ship, -. dAngle)
+    | Right => rotate(ship, dAngle)
     | Up => Ship.accelerate(ship, dt)
     | _ => ship
     };
