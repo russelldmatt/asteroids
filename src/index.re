@@ -12,6 +12,8 @@ module Color = {
 
 module Point = {
   type t = { x: float, y: float }
+  
+  let zero = { x: 0., y: 0. }
 
   let tuple = t => (t.x, t.y)
 
@@ -76,11 +78,30 @@ type state = {
 
 let setup = (env) : state => {
   Env.size(~width=size, ~height=size, env);
-
+  let ship = { 
+    Ship.tip: Point.{x: sizef /. 2., y: sizef /. 2.},
+    direction: Vector.{x: -100., y: 0.},
+    velocity: Vector.zero,
+  };
+  { ship: ship }
 }
 
-let draw = (_state, env) : state => {
+let draw = (state, env) : state => {
+  let { ship } = state;
   Draw.background(Color.black, env);
+  Draw.strokeWeight(2, env);
+  Draw.stroke(Color.white, env);
+  Ship.draw(ship, env);
+  state;
 }
 
-run(~setup, ~draw, ())
+let keyPressed = (state, env) => {
+  let { ship } = state;
+  let key = Env.keyCode(env);
+  switch (key) {
+  | 
+  }
+  
+};
+
+run(~setup, ~draw, ~keyPressed, ())
