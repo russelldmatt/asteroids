@@ -1,15 +1,30 @@
 open Reprocessing;
 
+module List = {
+  include List;
+  let rec filterMap = (t, f) => {
+    switch(t) {
+      | [] => []
+      | [x, ...tl] => 
+        switch(f(x)) {
+          | Some(x) => [x, ...filterMap(tl, f)]
+          | None => filterMap(tl, f)
+        }
+    }
+  }
+};
+
 let pi = 4.0 *. atan(1.0)
 
 /* Game constants */
 let dAngle = 0.2;
 let acceleration = 1.0;
 let dt = 0.1;
+let bulletAcceleration = 5.0;
 
-Js.log2("dAngle:", dAngle);
-Js.log2("acceleration:", acceleration);
-Js.log2("dt:", dt);
+/* Js.log2("dAngle:", dAngle); */
+/* Js.log2("acceleration:", acceleration); */
+/* Js.log2("dt:", dt); */
 
 let size = 600
 let sizef = float(size)
@@ -45,6 +60,11 @@ module Point = {
   let length = t => {
     dot(t, t) ** 0.5
   }
+
+  let onScreen = t => {
+    t.x <= sizef && t.x >= 0. &&
+    t.y <= sizef && t.y >= 0. 
+  }
 }
 
 module Vector = {
@@ -58,15 +78,29 @@ module Vector = {
       y: a *. sin(theta)
     }
   }
+}
 
-  let rotate' = (t, theta) => {
-    Js.log(t);
-    Js.log(theta);
-    let t = rotate(t, theta);
-    Js.log(t);
-    t
+module Bullet = { 
+  type t = {
+    pos : Point.t,
+    velocity : Vector.t,
   }
 
+  let timeStep = (t, dt) => {
+    let { pos, velocity } = t;
+    let pos = Point.add(pos, Vector.scale(velocity, ~by=dt));
+    if (Point.onScreen(pos)) {
+      Some({ ...t, pos })
+    } else None
+  }
+
+  let draw = (t, env) : unit => {
+    Draw.pixelf(
+      ~pos=Point.tuple(t.pos), 
+      ~color=Color.white,
+      env
+    )
+  }
 }
 
 module Ship = {
@@ -87,27 +121,31 @@ module Ship = {
   }
 
   let move = (t, dt) : t => {
-    let { centerOfMass, direction, velocity } = t;
+    let { centerOfMass, velocity } = t;
     { ...t, 
-      centerOfMass: Point.add(centerOfMass, Vector.scale(t.velocity, ~by=dt))
+      centerOfMass: Point.add(centerOfMass, Vector.scale(velocity, ~by=dt))
     }
   };
 
   let timeStep = (t, dt) : t => {
     move(t, dt) |> wrap
   }
-
+  
   let accelerate = (t, dt) : t => {
     let a = Vector.scale(t.direction, ~by=acceleration*.dt);
     { ...t, 
       velocity: Vector.add(t.velocity, a)
     }
   }
+
+  let tip = t => {
+    Point.add(t.centerOfMass, Vector.scale(t.direction, ~by=2.))
+  }
   
   let draw = (t, env) => {
     /* Center of mass is 2/3 from tip to middle of base */
     let negDirection = Vector.scale(t.direction, ~by=-1.);
-    let tip = Point.add(t.centerOfMass, Vector.scale(t.direction, ~by=2.));
+    let tip = tip(t);
     let backMiddle = Point.add(t.centerOfMass, negDirection);
     let backLeft = Point.add(backMiddle, Vector.rotate(negDirection, -.pi/.2.));
     let backRight = Point.add(backMiddle, Vector.rotate(negDirection, pi/.2.));
@@ -118,10 +156,21 @@ module Ship = {
       env
     )
   }
+
+  let shoot = t : Bullet.t => {
+    let tip = tip(t);
+    let a = Vector.scale(t.direction, ~by=bulletAcceleration);
+    let velocity = Vector.add(t.velocity, a);
+    {Bullet.pos: tip, velocity};
+  }
+
 }
 
 module State = {
-  type t = { ship : Ship.t }
+  type t = { 
+    ship : Ship.t,
+    bullets : list(Bullet.t),
+  }
 }
 
 let setup = (env) : State.t => {
@@ -131,17 +180,20 @@ let setup = (env) : State.t => {
     direction: Vector.{x: -10., y: 0.},
     velocity: Vector.zero,
   };
-  { ship: ship }
+  {ship, bullets: []};
 }
 
 let draw = (state, env) : State.t => {
-  let { State.ship } = state;
+  let { State.ship, bullets } = state;
   Draw.background(Color.black, env);
   Draw.strokeWeight(2, env);
   Draw.stroke(Color.white, env);
   Ship.draw(ship, env);
+  bullets
+  |> List.iter(bullet => Bullet.draw(bullet, env));
   let ship = Ship.timeStep(ship, dt);
-  { State.ship : ship }
+  let bullets = bullets |. List.filterMap(b => Bullet.timeStep(b, dt));
+  { ship, bullets }
 }
 
 let keyTyped = (state, env) : State.t => {
@@ -150,14 +202,16 @@ let keyTyped = (state, env) : State.t => {
   let rotate = (ship: Ship.t, angle) => {
     {...ship, Ship.direction: Vector.rotate(ship.direction, angle)};
   };
-  let ship =
-    switch (key) {
-    | Left => rotate(ship, -. dAngle)
-    | Right => rotate(ship, dAngle)
-    | Up => Ship.accelerate(ship, dt)
-    | _ => ship
-    };
-  { State.ship : ship }
+  switch (key) {
+  | Left => {...state, ship: rotate(ship, -. dAngle)}
+  | Right => {...state, ship: rotate(ship, dAngle)}
+  | Up => {...state, ship: Ship.accelerate(ship, dt)}
+  | Space => {
+    let bullet = Ship.shoot(ship);
+    { ...state, bullets: [ bullet, ...state.bullets ] }
+  }
+  | _ => state
+  };
 };
 
 run(~setup, ~draw, ~keyTyped, ())
