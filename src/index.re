@@ -111,13 +111,18 @@ module Ship = {
   }
 
   let wrap = t => {
-    let round = f => int_of_float (f +. 0.5)
-    let wrap = f => float((round(f) + size) mod size);
+    /* ... what? */
+    let wrap = f => f < 0. ? f +. sizef : f > sizef ? f -. sizef : f;
+    let centerOfMass =
+      if (Point.onScreen(t.centerOfMass)) {
+        t.centerOfMass;
+      } else {
+        Point.{x: wrap(t.centerOfMass.x), y: wrap(t.centerOfMass.y)};
+      };
     {
       ...t,
-      centerOfMass:
-        Point.{x: wrap(t.centerOfMass.x), y: wrap(t.centerOfMass.y)},
-    };
+      centerOfMass
+    }
   }
 
   let move = (t, dt) : t => {
@@ -133,9 +138,10 @@ module Ship = {
   
   let accelerate = (t, dt) : t => {
     let a = Vector.scale(t.direction, ~by=acceleration*.dt);
-    { ...t, 
-      velocity: Vector.add(t.velocity, a)
-    }
+    /* Js.log(a); */
+    let velocity = Vector.add(t.velocity, a);
+    /* Js.log(velocity); */
+    {...t, velocity};
   }
 
   let tip = t => {
