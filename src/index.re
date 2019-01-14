@@ -4,7 +4,6 @@ open Reprocessing;
    - random generation of more asteroids
    - different sizes of asteroids, and larger ones split up into multiple of the next smaller size
    - score!
-   - delay when trying to turn or accelerate is super annoying
    - different game over state than crashing
    - multiple lives?
    - non-circular asteroids (sounds hard...)
@@ -57,7 +56,7 @@ module List = {
 let pi = 4.0 *. atan(1.0)
 
 /* Game constants */
-let dAngle = 0.2;
+let dAngle = 0.1;
 let acceleration = 1.0;
 let dt = 0.1;
 let bulletAcceleration = 5.0;
@@ -277,9 +276,27 @@ let setup = (env) : State.t => {
       let center = { Point.x: Random.float(sizef), y: Random.float(sizef) };
       let velocity = Vector.scale(Vector.randomUnit(), ~by=20.);
       { Asteroid.center, velocity, radius: 10. }
-    });
-    {ship, bullets: [], asteroids};
+  });
+  {ship, bullets: [], asteroids}
 }
+
+let respondToKey = (state, env) : State.t => {
+  let { State.ship } = state;
+  let key = Env.keyCode(env);
+  let rotate = (ship: Ship.t, angle) => {
+    {...ship, Ship.direction: Vector.rotate(ship.direction, angle)};
+  };
+  switch (key) {
+  | Left => {...state, ship: rotate(ship, -. dAngle)}
+  | Right => {...state, ship: rotate(ship, dAngle)}
+  | Up => {...state, ship: Ship.accelerate(ship, dt)}
+  | Space => {
+    let bullet = Ship.shoot(ship);
+    { ...state, bullets: [ bullet, ...state.bullets ] }
+  }
+  | _ => state
+  };
+};
 
 let draw = (state, env) : State.t => {
   let { State.ship, bullets, asteroids } = state;
@@ -314,25 +331,17 @@ let draw = (state, env) : State.t => {
   };
   if (gameOver) failwith("game over");
 
-  { ship, bullets, asteroids }
+  let state = { State.ship, bullets, asteroids };
+  let relevantKeyIsPressed =
+    List.exists(key => Env.keyPressed(key, env), [ Space ]);
+  let relevantKeyIsHeld = 
+    List.exists(
+    key => Env.key(key, env),
+    [ Left,
+      Right,
+      Up,
+    ]);
+  (relevantKeyIsPressed || relevantKeyIsHeld) ? respondToKey(state, env) : state
 }
 
-let keyTyped = (state, env) : State.t => {
-  let { State.ship } = state;
-  let key = Env.keyCode(env);
-  let rotate = (ship: Ship.t, angle) => {
-    {...ship, Ship.direction: Vector.rotate(ship.direction, angle)};
-  };
-  switch (key) {
-  | Left => {...state, ship: rotate(ship, -. dAngle)}
-  | Right => {...state, ship: rotate(ship, dAngle)}
-  | Up => {...state, ship: Ship.accelerate(ship, dt)}
-  | Space => {
-    let bullet = Ship.shoot(ship);
-    { ...state, bullets: [ bullet, ...state.bullets ] }
-  }
-  | _ => state
-  };
-};
-
-run(~setup, ~draw, ~keyTyped, ())
+run(~setup, ~draw, ())
