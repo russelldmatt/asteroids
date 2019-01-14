@@ -169,10 +169,9 @@ module Ship = {
   }
 
   let wrap = t => {
-    let centerOfMass = Point.wrap(t.centerOfMass);
     {
       ...t,
-      centerOfMass
+      centerOfMass: Point.wrap(t.centerOfMass),
     }
   }
 
@@ -232,7 +231,8 @@ module Asteroid = {
   }
   
   /* Copied from bullet */
-  /* Would be better if I detected when any part of the circle was onscreen instead of just center */
+  /* Would be better if I detected when any part of the circle was
+     onscreen instead of just center */
   let timeStep = (t, dt) => {
     let { center, velocity } = t;
     let center =
