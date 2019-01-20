@@ -249,6 +249,7 @@ module Ship = {
   }
 
   let tip = t => {
+    /* Center of mass is 2/3 from tip to middle of base */
     Point.add(t.centerOfMass, Vector.scale(t.direction, ~by=2.))
   }
 
@@ -262,30 +263,8 @@ module Ship = {
   }
 
   let draw = (t, env) => {
-    /* Center of mass is 2/3 from tip to middle of base */
-    let negDirection = Vector.scale(t.direction, ~by=-1.);
-    let tip = tip(t);
-    let backMiddle = Point.add(t.centerOfMass, negDirection);
-    let backLeft = Point.add(backMiddle, Vector.rotate(negDirection, -.pi/.2.));
-    let backRight = Point.add(backMiddle, Vector.rotate(negDirection, pi/.2.));
-    Draw.trianglef(
-      ~p1=Point.tuple(tip),
-      ~p2=Point.tuple(backLeft),
-      ~p3=Point.tuple(backRight),
-      env
-    )
-    let triangle = { Triangle.p1: tip, p2: backLeft, p3: backRight };
-    for (x in 1 to size) {
-      for (y in 1 to size) {
-        if (x mod 5 == 0 && y mod 5 == 0) {
-          Draw.strokeWeight(1, env);
-          let p = { Point.x: float(x), y: float(y) };
-          let color = Triangle.isWithin(triangle, p) ? Color.red : Color.white;
-          Draw.pixel(~pos=(x, y), ~color, env)
-          Draw.strokeWeight(2, env);
-        }
-      }
-    };
+    let { Triangle.p1, p2, p3 } = triangle(t);
+    Draw.trianglef(~p1=Point.tuple(p1), ~p2=Point.tuple(p2), ~p3=Point.tuple(p3), env)
   }
 
   let shoot = t : Bullet.t => {
@@ -405,7 +384,7 @@ let draw = (state, env) : State.t => {
       switch (crashedInto) {
         | None => false
         | Some(a) => {
-          /* Draw.stroke(Color.red, env); */
+          Draw.stroke(Color.red, env);
           Asteroid.draw(a, env);
           true
         }
