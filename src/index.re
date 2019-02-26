@@ -1,8 +1,8 @@
 open Reprocessing;
 
 /* TODO: 
-   - random generation of more asteroids
    - different sizes of asteroids, and larger ones split up into multiple of the next smaller size
+   - random generation of more asteroids
    - score!
    - different game over state than crashing
    - multiple lives?
